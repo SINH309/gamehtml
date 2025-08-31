@@ -1,0 +1,751 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Study Level System</title>
+
+  <!-- Khai báo manifest và icon -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon-192.png">
+
+  <style>
+    /* CSS của bạn giữ nguyên */
+    body { font-family: Arial, sans-serif; background:#f9f9f9; color:#000; padding:20px; transition:0.3s; }
+    .bar { height:25px; background:#ddd; border-radius:12px; margin:10px 0; position:relative; overflow:hidden; }
+    .fill { height:100%; border-radius:12px; text-align:center; color:white; line-height:25px; transition:width 0.4s ease; }
+    #expFill { background:#4caf50; }
+    #hpFill { background:#f44336; }
+    button { margin:5px; padding:10px 15px; border:none; border-radius:8px; cursor:pointer; font-size:16px; transition:0.3s; }
+    button:disabled { background:#bbb; cursor:not-allowed; }
+    button:hover:not(:disabled) { transform:scale(1.05); box-shadow:0 0 10px rgba(0,0,0,0.2); }
+    #log { margin-top:15px; background:#eee; padding:10px; border-radius:8px; max-height:200px; overflow:auto; font-family:monospace; transition:0.3s; }
+    #log div { padding:2px 0; border-bottom:1px dashed #ccc; }
+    #rank img { margin-bottom:8px; }
+    #congratsPopup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:999; }
+    #congratsPopup .box { background:#fff; padding:20px; border-radius:16px; max-width:400px; text-align:center;
+      animation: zoomIn 0.5s ease; box-shadow:0 0 20px rgba(255,255,255,0.5); border:2px solid blue; }
+    #congratsPopup h2 { color:#0077be ; text-shadow:0 0 2px #b8860b; }
+    #congratsPopup button { background:linear-gradient(45deg,#ff9800,#ff5722); color:white; font-weight:bold; }
+    #congratsPopup button:hover { background:linear-gradient(45deg,#ff5722,#ff9800); transform:scale(1.1); box-shadow:0 0 10px #ff9800; }
+    @keyframes zoomIn { from { transform:scale(0.5); opacity:0; } to { transform:scale(1); opacity:1; } }
+    body.dark-mode { background:#121212; color:#eee; }
+    body.dark-mode .bar { background:#333; }
+    body.dark-mode #log { background:#222; border:1px solid #444; }
+    body.dark-mode #congratsPopup .box { background:#1e1e1e; color:#fff; }
+    #modeToggle { position:fixed; top:15px; right:15px; background:#444; color:#fff; }
+    body.dark-mode #modeToggle { background:#ddd; color:#000; }
+  </style>
+</head>
+<body>
+  <button id="modeToggle" onclick="toggleMode()">🌙 Dark</button>
+  <div id="story-button" title="Xem cốt truyện">❕</div>
+
+<!-- Hộp cốt truyện ẩn -->
+<div id="story-popup">
+  <h3>Cốt truyện</h3>
+  <p>
+    Bạn từng là một vị thần đa vũ trụ, nhưng đã bị phản bội và tước hết quyền năng. 
+    Giờ đây bạn chỉ còn là một con slime yếu ớt, bắt đầu lại từ đầu để tiêu diệt quái vật, hấp thụ sức mạnh và trở lại vị trí thống trị!
+  </p>
+  <button onclick="closeStory()">Đóng</button>
+</div>
+  <h1>👑 The Realm of Monsters</h1>
+  <h3>📋 Quái Vật Hiện Tại</h3>
+
+  <div>
+    <strong>Level:</strong> <span id="level">1</span><br>
+    <div id="rank"></div>
+    <div class="bar"><div id="expFill" class="fill" style="width:0%">0/1000</div></div>
+  </div>
+
+  <div>
+    <strong>HP:</strong> <span id="hp">10000/10000</span><br>
+    <div class="bar"><div id="hpFill" class="fill" style="width:100%">100%</div></div>
+  </div>
+
+  <div>
+     <h3>⚔️ Báo Cáo Hoạt Động </h3>
+    ⏱️ Thời gian làm việc (h:m:s): 
+    <input type="text" id="timeInput" value="00:00:00">
+    <button id="reportBtn" onclick="reportStudy()">Report</button>
+    <button onclick="undoReport()">Undo</button>
+  </div>
+  <h3>💖 Phục hồi</h3>
+   <div>
+    🛌 <button onclick="recoverHP(100,'🛌')">Ngủ (Full HP)</button>
+    📱 <button onclick="recoverHP(50,'📱')">Lướt mạng xã hội (50%)</button>
+    🍔 <button onclick="recoverHP(90,'🍔')">Ăn (90%)</button>
+    🚿 <button onclick="recoverHP(80,'🚿')">Tắm (80%)</button>
+    💩 <button onclick="recoverHP(70,'💩')">Đi nặng (70%)</button>
+    🫙 <button onclick="recoverHP(100,'🫙')">Lọ (Full)</button>
+    🚶 <button onclick="recoverHP(70,'🚶')">Đi ra ngoài chơi (70%)</button>
+    📺 <button onclick="recoverHP(70,'📺')">Xem TV (70%)</button>
+    🎮<button onclick="recoverHP(50,'🎮')">Chơi game (50%)</button>
+    💪<button onclick="recoverHP(70,'💪')">Thể thao (70%)</button>
+    🎵<button onclick="recoverHP(50,' 🎵')">Nghe nhạc (50%)</button>
+    💬<button onclick="recoverHP(60,' 💬')">Chat (60%)</button>
+
+
+  </div>
+
+  <div>
+    <h3>📈 Thống kê </h3>
+    <p><strong>Tổng report:</strong> <span id="reports">0</span></p>
+    <p><strong>Tổng EXP:</strong> <span id="totalExp">0</span></p>
+  </div>
+
+  <h3>📜 Nhật ký</h3>
+  <div id="log"></div>
+    <!-- Âm thanh -->
+  <audio id="soundReport" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+  <audio id="soundcloseStory" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+  <audio id="soundLevelUp" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+  <audio id="soundFanfare" src="https://actions.google.com/sounds/v1/cartoon/slide_whistle_to_drum_hit.ogg" preload="auto"></audio>
+  <audio id="soundRecover" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg" preload="auto"></audio>
+  <audio id="soundRecoverBtn" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto">     </audio>
+  <audio id="soundToggleMode" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <audio id="soundUndo" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+  <audio id="soundCongratsPopup" src="https://actions.google.com/sounds/v1/cartoon/metal_twang.ogg" preload="auto"></audio>
+  <audio id="closeCongrats" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+
+  
+
+  <h3>🏆 Gallery </h3>
+  <div id="rankGallery" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+
+  <div id="congratsPopup">
+    <div class="box">
+      <h2> Chúc mừng!</h2>
+      <div id="congratsContent"></div>
+      <button onclick="closeCongrats()">OK</button>
+    </div>
+  </div>
+
+  <!-- Âm thanh -->
+
+<script>
+  let level = 1;
+  let exp = 0;
+  let totalExp = 0;
+  let reports = 0;
+  let maxHp = 10000;
+  let hp = maxHp;
+  let history = [];
+  let unlockedRanks = new Set();
+  const storyBtn = document.getElementById('story-button');
+const popup = document.getElementById('story-popup');
+
+storyBtn.onclick = () => {
+  popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+};
+
+function closeStory() {
+document.getElementById("soundcloseStory").play();
+  popup.style.display = 'none';
+}
+
+  function expToNextLevel(lv) { return lv * 1000; }
+
+  function getRank(lv) {
+    if (lv <= 9) return {
+      name: "Slime 💧",
+      desc: "Một khối chất nhầy lờ đờ, yếu nhưng dai.",
+      hp: 30, atk: 5, def: 2, skill: "Chia nhỏ (Split)",
+      avatar: "https://i.postimg.cc/BnJ9Jvvy/dreamina-2025-08-31-1491-1-con-qu-i-v-t-slime-m-u-xanh-l-kh-ng.jpg"
+    };
+    if (lv <= 19) return {
+      name: "Rat khổng lồ 🐀",
+      desc: "Chuột lớn bằng chó, mang bệnh dịch.",
+      hp: 50, atk: 8, def: 3, skill: "Cắn nhiễm bệnh",
+      avatar: "https://i.postimg.cc/nh97cnw4/dreamina-2025-08-31-7941-qu-i-v-t-chu-t-mang-d-ch-b-nh-ng-s.jpg"
+    };
+    if (lv <= 29) return {
+      name: "Bat 🦇",
+      desc: "Dơi hút máu, ẩn nấp trong hang tối.",
+      hp: 40, atk: 7, def: 2, skill: "Hút máu",
+      avatar: "https://i.postimg.cc/PqzCPJbw/dreamina-2025-08-31-2750-qu-i-v-t-d-i-h-t-m-u-n-n-p-trong-c-c-h.jpg"
+    };
+    if (lv <= 39) return {
+      name: "Goblin 👺",
+      desc: "Sinh vật nhỏ bé, láu cá, thường phục kích theo bầy.",
+      hp: 60, atk: 10, def: 5, skill: "Phục kích",
+      avatar: "https://i.postimg.cc/Yq50RYbF/dreamina-2025-08-31-3573-y-u-tinh-da-xanh-tai-d-i-c-m-dao-khu.jpg"
+    };
+    if (lv <= 49) return {
+  name: "Con Người 🧑",
+  desc: "Loài sinh vật thông minh, kiên cường và đa dạng.",
+  hp: 70, atk: 12, def: 6, skill: "Chiến thuật linh hoạt",
+  avatar: "https://i.postimg.cc/C5Rm3gNr/Gemini-Generated-Image-51a0ok51a0ok51a0.png" // Bạn thay link avatar phù hợp nha
+}
+    
+     if (lv <= 59) return {
+    name: "Zombie 🧟",
+    desc: "Xác sống chậm chạp, khó bị tiêu diệt.",
+    hp: 100, atk: 15, def: 8, skill: "Cắn truyền nhiễm",
+    avatar: "https://i.postimg.cc/wvrgvYrN/dreamina-2025-08-31-8845-X-c-s-ng-h-nh-d-ng-con-ng-i-d-t-n-ch-m.jpg"
+  };
+
+  if (lv <= 69) return {
+    name: "Skeleton 💀",
+    desc: "Bộ xương biết đi, miễn nhiễm sợ hãi.",
+    hp: 90, atk: 18, def: 10, skill: "Kháng phép",
+    avatar: "https://i.postimg.cc/Z5YbVH6C/dreamina-2025-08-31-1856-B-x-ng-con-ng-i-bi-t-i-h-nh-d-ng-d.jpg"
+  };
+
+  if (lv <= 79) return {
+    name: "Hobgoblin",
+    desc: "Lớn hơn goblin, biết tổ chức và dùng vũ khí.",
+    hp: 120, atk: 25, def: 15, skill: "Chỉ huy nhóm",
+    avatar: "https://i.postimg.cc/zX75bh45/dreamina-2025-08-31-5656-y-u-tinh-da-xanh-n-c-bi-n-tai-d-i-c-m.jpg"
+  };
+
+  if (lv <= 89) return {
+    name: "Gnoll 🐕",
+    desc: "Người linh cẩu, hung hãn, ăn thịt sống.",
+    hp: 150, atk: 30, def: 18, skill: "Cuồng nộ",
+    avatar: "https://i.postimg.cc/yYL4YHS8/dreamina-2025-08-31-3701-Ng-i-lai-linh-c-u-cao-to-hung-h-n-n.jpg"
+  };
+
+  if (lv <= 99) return {
+    name: "Dire Wolf 🐺",
+    desc: "Sói khổng lồ, săn mồi theo đàn.",
+    hp: 180, atk: 35, def: 20, skill: "Săn bầy",
+    avatar: "https://i.postimg.cc/9XtHKTmT/dreamina-2025-08-31-6540-S-i-kh-ng-l-s-n-m-i-theo-n.jpg"
+  };
+
+  if (lv <= 109) return {
+    name: "Bandit 🏴‍☠️",
+    desc: "Tên cướp đường, tham lam và tàn nhẫn.",
+    hp: 200, atk: 40, def: 22, skill: "Đánh lén",
+    avatar: "https://i.postimg.cc/MKT35jvz/dreamina-2025-08-31-2340-T-n-c-p-ng-ph-c-m-ao-d-ng-ng-i-c.jpg"
+  };
+
+  if (lv <= 119) return {
+    name: "Lizardman 🐊",
+    desc: "Người thằn lằn sống đầm lầy.",
+    hp: 220, atk: 45, def: 25, skill: "Thủy chiến",
+    avatar: "https://i.postimg.cc/D0z6xtfx/dreamina-2025-08-31-6367-Ng-i-lai-th-n-l-n-da-c-s-u-cao-l-n-v.jpg"
+  };
+
+  if (lv <= 129) return {
+    name: "Mimic 📦👅",
+    desc: "Giả làm rương kho báu.",
+    hp: 250, atk: 50, def: 30, skill: "Nuốt chửng",
+    avatar: "https://i.postimg.cc/P5D4Vbhn/dreamina-2025-08-31-5207-qu-i-v-t-c-m-l-i-h-i-c-h-nh-d-ng-r-n.jpg"
+  };
+
+  if (lv <= 139) return {
+    name: "Ghoul 🧟‍♂️",
+    desc: "Xác sống ăn thịt người.",
+    hp: 260, atk: 55, def: 28, skill: "Xé thịt",
+    avatar: "https://i.postimg.cc/TYDgTRsr/dreamina-2025-08-31-6411-X-c-s-ng-h-nh-ng-i-to-b-o-kh-ng-l.jpg"
+  };
+
+  if (lv <= 149) return {
+    name: "Wight ⚔️💀",
+    desc: "Xác chết có ý thức.",
+    hp: 280, atk: 60, def: 32, skill: "Hút sinh lực",
+    avatar: "https://i.postimg.cc/L8kPZx25/dreamina-2025-08-31-5260-Wights-appear-as-weird-and-twisted-refle.jpg"
+  };
+
+  if (lv <= 159) return {
+    name: "Wraith 👻",
+    desc: "Linh hồn hận thù.",
+    hp: 300, atk: 70, def: 40, skill: "Xuyên giáp",
+    avatar: "https://i.postimg.cc/Bn3gyLv8/dreamina-2025-08-31-1656-Linh-h-n-h-n-th.jpg"
+  };
+
+  if (lv <= 169) return {
+    name: "Harpie",
+    desc: "Nữ quái nửa chim nửa người.",
+    hp: 350, atk: 75, def: 50, skill: "Tiếng hát mê hoặc",
+    avatar: "https://i.postimg.cc/Jh65Gp5J/dreamina-2025-08-31-3908-N-qu-i-v-t-lai-n-a-chim-n-a-ng-i-c-c.jpg"
+  };
+
+  if (lv <= 179) return {
+    name: "Orc",
+    desc: "Tộc chiến binh hiếu chiến.",
+    hp: 375, atk: 80, def: 55, skill: "Cuồng bạo",
+    avatar: "https://i.postimg.cc/QCr9t7w1/dreamina-2025-08-31-5303-y-u-tinh-da-xanh-l-c-y-c-b-p-s-nh.jpg"
+  };
+
+  if (lv <= 189) return {
+    name: "Ettin 👥",
+    desc: "Người khổng lồ hai đầu.",
+    hp: 400, atk: 90, def: 70, skill: "Đánh hai lần",
+    avatar: "https://i.postimg.cc/NfB2v11w/dreamina-2025-08-31-2555-Ng-i-kh-ng-l-c-h-nh-d-ng-con-ng-i-l.jpg"
+  };
+  if (lv <= 259) return {
+    name: "Hill Giant 🗻",
+    desc: "Một gã khổng lồ sống trên đồi, khỏe hơn cả Ogre.",
+    hp: 450,
+    atk: 95,
+    def: 85,
+    skill: "Gầm núi",
+    avatar: "https://i.postimg.cc/rw8SBTQV/bonecrusher-giant-mtg.jpg"
+};
+
+  if (lv <= 300) return {
+    name: "Ogre 👹",
+    desc: "Khổng lồ da dày.",
+    hp: 500, atk: 100, def: 85, skill: "Nện đất",
+    avatar: "https://i.postimg.cc/hj2648f3/dreamina-2025-08-31-1424-Ogre-th-ng-c-mi-u-t-trong-c-c-truy.jpg"
+  };
+
+  if (lv <= 350) return {
+    name: "Gargoyle 🗿",
+    desc: "Sinh vật đá biết bay.",
+    hp: 600, atk: 110, def: 90, skill: "Hóa đá",
+    avatar: "https://i.postimg.cc/GtNfGcPF/dreamina-2025-08-31-1332-m-t-con-d-i-d-t-n-c-l-m-ho-n-to-n-b.jpg"
+  };
+
+  if (lv <= 400) return {
+    name: "Centaur 🏹🐎",
+    desc: "Nửa người nửa ngựa.",
+    hp: 650, atk: 120, def: 100, skill: "Bắn liên hoàn",
+    avatar: "https://i.postimg.cc/CLBXYqYm/dreamina-2025-08-31-2792-nh-n-m-d-ng-ng-i-c-b-p-t-c-d-i-c-m.jpg"
+  };
+  
+if (lv <= 449) return {
+    name: "Xác ướp 🧻",
+    desc: "Xác chết được ướp và nguyền rủa, sống dậy để canh giữ kim tự tháp.",
+    hp: 800, atk: 150, def: 100, skill: "Nguyền rủa / Bó xác",
+    avatar: "https://i.postimg.cc/VsW4Whdn/unnamed-5.png"
+};
+
+  if (lv <= 499) return {
+    name: "Medusa 🐍👩",
+    desc: "Ánh nhìn hóa đá.",
+    hp: 830, atk: 160, def: 100, skill: "Ánh mắt hóa đá",
+    avatar: "https://i.postimg.cc/qqXLM4bB/dreamina-2025-08-31-5061-medusa-xinh-p-v-i-nh-nh-n-ho.jpg"
+  };
+
+  if (lv <= 549) return {
+    name: "Basilisk 🐍",
+    desc: "Hơi thở độc chết chóc.",
+    hp: 900, atk: 165, def: 110, skill: "Hơi thở độc",
+    avatar: "https://i.postimg.cc/9Fhg3N8F/dreamina-2025-08-31-7649-Trong-th-n-tho-i-ch-u-u-Basilisk-c.jpg"
+  };
+
+  if (lv <= 599) return {
+    name: "Minotaur 🐂",
+    desc: "Quái đầu bò.",
+    hp: 1000, atk: 180, def: 120, skill: "Cuồng nộ mê cung",
+    avatar: "https://i.postimg.cc/nc2kyV90/dreamina-2025-08-31-1643-Minotaur-qu-i-v-t-lai-ng-i-u-b-si.jpg"
+  };
+  if (lv <= 649) return {
+    name: "Quái vật cây cổ thụ 🌳",
+    desc: "Cây cổ thụ biến dị, biết đi và tấn công những kẻ xâm phạm rừng sâu.",
+    hp: 1100, atk: 200, def: 140, skill: "Rễ trói / Đập cành",
+    avatar: "https://i.postimg.cc/GmMr6zt5/unnamed.png"
+}
+
+ //699 -> 6499//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+if (lv <= 699) return {
+    name: "Goatman 🐐",
+    desc: "Sinh vật nửa người nửa dê, hoang dã và hung hãn trong rừng sâu.",
+    hp: 1200, atk: 230, def: 140, skill: "Đâm sừng / Gầm rú",
+    avatar: "https://i.postimg.cc/pLDwfCbS/unnamed-3.png"
+};
+if (lv <= 749) return {
+    name: "Người sói 🌕",
+    desc: "Chiến binh bị nguyền rủa, biến hình thành sói dưới trăng tròn.",
+    hp: 1300, atk: 220, def: 145, skill: "Cắn xé / Gầm trăng máu",
+    avatar: "https://i.postimg.cc/tRvpJBpt/unnamed-1.png"
+};
+if (lv <= 800) return {
+    name: "Kỳ lân 🦄",
+    desc: "Thánh thú huyền thoại, biểu tượng của sự thuần khiết và ánh sáng.",
+    hp: 1400, atk: 235, def: 147, skill: "Ánh sáng chữa lành / Xuyên thủ hộ",
+    avatar: "https://i.postimg.cc/vZgBTZgy/unnamed-3.png"
+}
+ if (lv <= 849) return {
+    name: "Nhện khổng lồ 🕷️",
+    desc: "Quái vật nhện khổng lồ sống trong hang tối, giăng tơ bẫy con mồi.",
+    hp: 1500, atk: 240, def: 150, skill: "Phun tơ / Nọc độc",
+    avatar: "https://i.postimg.cc/7Y7HRgr3/unnamed.png"
+};
+if (lv <= 899) return {
+    name: "Kỵ sỹ quỷ 🏇🔥",
+    desc: "Chiến binh ma quái cưỡi ngựa địa ngục, lửa cháy trên bộ giáp đen.",
+    hp: 1650, atk: 300, def: 150, skill: "Thương diệt hồn / Xung phong địa ngục",
+    avatar: "https://i.postimg.cc/HkdgPR2m/unnamed-4.png"
+};
+ if (lv <= 949) return {
+    name: "Troll 🪨",
+    desc: "Sinh vật to lớn, ngu ngốc nhưng vô cùng khỏe mạnh, sống trong núi đá.",
+    hp: 1650, atk: 350, def: 180, skill: "Đập chùy / Hồi phục",
+    avatar: "https://i.postimg.cc/5N9g7mCG/unnamed-6.png"
+};
+ if (lv <= 999) return {
+    name: "Yeti ❄️",
+    desc: "Người tuyết truyền thuyết, ẩn mình trong núi băng, sức mạnh kinh hoàng.",
+    hp: 1800, atk: 400, def: 200, skill: "Đập băng / Gầm tuyết",
+    avatar: "https://i.postimg.cc/85BdwFPN/unnamed-7.png"
+};
+ if (lv <= 1099) return {
+    name: "Nàng tiên cá 🧜",
+    desc: "Sinh vật nửa người nửa cá, dùng giọng hát mê hoặc thủy thủ.",
+    hp: 1800, atk: 450, def: 200, skill: "Hát mê hoặc / Sóng nước",
+    avatar: "https://i.postimg.cc/W4Vh85Dq/unnamed-8.png"
+};
+   if (lv <= 1249) return {
+    name: "Golem 🧱",
+    desc: "Người đá được tạo bằng phép.",
+    hp: 2000, atk: 500, def: 300, skill: "Bất động",
+    avatar: "https://i.postimg.cc/TPLJ5r74/dreamina-2025-08-31-9155-Golem-ng-i-kh-ng-l.jpg"
+};
+ if (lv <= 1499) return {
+    name: "Manticore 🦁🦂",
+    desc: "Sư tử đuôi bọ cạp.",
+    hp: 2200, atk: 510, def: 310, skill: "Gai độc",
+    avatar: "https://i.postimg.cc/wMVXYFM7/dreamina-2025-08-31-6061-qu-i-v-t-S-t-u-i-b-c-p-d-t-n-kh-ng.jpg"
+  };
+    if (lv <= 1749) return {
+  name: "Chimera 🦁🐍🐐",
+  desc: "Sinh vật lai sư tử, rắn và dê, phun lửa và tấn công đa hướng.",
+  hp: 2400,
+  atk: 550,
+  def: 335,
+  skill: "Phun lửa hỗn hợp",
+  avatar: "https://i.postimg.cc/xddqBcR9/unnamed-9.png" // thay link ảnh thật của Chimera
+};
+  
+  if (lv <= 1999) return {
+    name: "Behemoth 🐘",
+    desc: "Thú thần cổ đại, sức mạnh có thể nghiền nát cả núi.",
+    hp: 2800,
+    atk: 600,
+    def: 400,
+    skill: "Nghiền Nát",
+    avatar: "https://i.postimg.cc/yY6xBN4b/Titanus-Behemoth.webp"
+};
+if (lv <= 2249) return {
+    name: "Phù thủy 🧙",
+    desc: "Ông lão ma pháp bóng tối, tinh thông phép nguyền rủa.",
+    hp: 2400, atk: 1000, def: 350, skill: "Hắc thuật / Lời nguyền",
+    avatar: "https://i.postimg.cc/TYC6FQHW/unnamed-10.png"
+};
+if (lv <= 2749) return {
+    name: "Tiên nữ ✨",
+    desc: "Sinh vật nhỏ bé trong rừng, mang ma thuật hồi phục và ảo ảnh.",
+    hp: 2300, atk: 1100, def: 400, skill: "Phấn tiên / Ảo ảnh",
+    avatar: "https://i.postimg.cc/mgnG2k4L/unnamed-11.png"
+};
+if (lv <= 2999) return {
+    name: "Người khổng lồ 🗿",
+    desc: "Sinh vật cao lớn, sức mạnh cơ bắp khủng khiếp, có thể nghiền nát cả lâu đài.",
+    hp: 4000, atk: 1000, def: 500, skill: "Đạp nát / Ném đá khổng lồ",
+    avatar: "https://i.postimg.cc/mDtjZZbs/unnamed-12.png"
+};
+if (lv <= 3249) return {
+    name: "Người ngoài hành tinh 👽",
+    desc: "Thực thể đến từ vũ trụ, sở hữu công nghệ và năng lực vượt hiểu biết loài người.",
+    hp: 4100, atk: 1100, def: 600, skill: "Tia plasma / Dịch chuyển",
+    avatar: "https://i.postimg.cc/mgm7cxp2/unnamed-14.png"
+};
+  if (lv <= 3499) return {
+    name: "Wyvern 🐉",
+    desc: "Rồng hai chân.",
+    hp: 5000, atk: 2000, def: 900, skill: "Hơi thở độc",
+    avatar: "https://i.postimg.cc/tgxF4970/dreamina-2025-08-31-4785-m-t-con-wyvern-da-xanh-l-c-y.jpg"
+  };
+
+if (lv <= 3749) return {
+    name: "Chó ba đầu Kerberos 🐶🐶🐶",
+    desc: "Thần thú địa ngục canh giữ cánh cổng tử thần, không kẻ sống nào vượt qua.",
+    hp: 5000, atk: 2500, def: 850, skill: " Hống tử vong",
+    avatar: "https://i.postimg.cc/sXkYVp6Y/unnamed-13.png"
+};
+
+if (lv <= 3999) return {
+    name: "Sandworm khổng lồ 🐛",
+    desc: "Giun cát khổng lồ sống trong sa mạc, nuốt chửng cả đoàn quân.",
+    hp: 6400, atk: 3000, def: 1000, skill: "Nuốt chửng / Cát lở",
+    avatar: "https://i.postimg.cc/x11zVxjr/unnamed-15.png"
+ };
+  if (lv <= 4249) return {
+  name: "Giant Octopus 🐙",
+  desc: "Bạch tuộc khổng lồ, có nhiều xúc tu mạnh mẽ, linh hoạt dưới nước và trên cạn.",
+  hp: 6600,
+  atk: 3300,
+  def: 1100,
+  skill: "Quấn và nghiền",
+  avatar: "https://i.postimg.cc/MpvT4ZhJ/Gemini-Generated-Image-ydt64qydt64qydt6.png" // t
+};
+if (lv <= 4499) return {
+    name: "Cá voi khổng lồ 4 chân 🐋",
+    desc: "Một quái thú khổng lồ dị dạng, nửa cá voi nửa quái thú đất liền.",
+    hp: 7000, atk: 3500, def: 1400, skill: "Nghiền nát / Sóng thần",
+    avatar: "https://i.postimg.cc/9X1XHWDM/unnamed-16.png"
+};
+if (lv <= 4749) return {
+    name: "Phượng hoàng 🔥",
+    desc: "Ngọn lửa bất diệt, tái sinh từ tro tàn, loài chim thần thoại tối cao.",
+    hp: 8500, atk: 4000, def: 1500, skill: "Lửa tái sinh / Cánh tro tàn",
+    avatar: "https://i.postimg.cc/Lsd235by/unnamed-17.png"
+};
+  
+if (lv <= 4999) return {
+    name: "Rồng đỏ 🐉",
+    desc: "Sinh vật huyền thoại thở ra lửa, bá chủ của bầu trời.",
+    hp: 10000, atk: 6000, def: 1800, skill: "Hơi thở lửa / Vỗ cánh bão tố",
+    avatar: "https://i.postimg.cc/SssTX7fH/unnamed-19.png"
+};
+
+   if (lv <= 5249) return {
+    name: "Bạch long ⚪🐉",
+    desc: "Con rồng hiếm mang trí tuệ và sức mạnh ma thuật tinh khiết.",
+    hp: 14000, atk: 9000, def: 2100, skill: "Hơi thở băng / Thánh quang",
+    avatar: "https://i.postimg.cc/ryt6QM53/unnamed-18.png"
+};
+  if (lv <= 5499) return {
+  name: "Hydra 🐍",
+  desc: "Rắn nhiều đầu hung hãn, mỗi đầu tấn công riêng biệt, khó bị hạ.",
+  hp: 14500,
+  atk: 9500,
+  def: 2080,
+  skill: "8 mạng sống",
+  avatar: "https://i.postimg.cc/MT4t7G2Z/Gemini-Generated-Image-svn7mqsvn7mqsvn7.png"
+};
+  if (lv <= 5749) return {
+    name: "Vampire / Lich 🦇☠️",
+    desc: "Ma cà rồng.",
+    hp: 15000, atk: 10000, def: 2000, skill: "Hút máu / Ma thuật",
+    avatar: "https://i.postimg.cc/nh6Q5N23/dreamina-2025-08-31-7009-1-con-ma-c-r-ng-o-cho-ng-ng-s.jpg"
+  };
+  if (lv <= 5999) return {
+  name: "Pegasus Knight 🐎⚔️",
+  desc: "Kỵ sĩ dũng cảm cưỡi Pegasus trắng, diệt rồng.",
+  hp: 16000,
+  atk: 13000,
+  def: 2500,
+  skill: "Thương Thiên Không ⚔️",
+  avatar: "https://i.postimg.cc/wvSZ62Bk/Gemini-Generated-Image-bp1saubp1saubp1s.png" // 
+};
+ if (lv <= 6249) return {
+    name: "Thần Anubis 🐺⚖️",
+    desc: "Vị thần đầu chó rừng của Ai Cập cổ đại, kẻ dẫn linh hồn vào thế giới bên kia.",
+    hp: 18000, atk: 13500, def: 2700, skill: "Phán xét linh hồn / Nguyền rủa cát",
+    avatar: "https://i.postimg.cc/W1SrCRMc/unnamed-1.png"
+};
+ if (lv <= 6449) return {
+    name: "Thần Chết ☠️⛓️",
+    desc: "Hiện thân của cái chết, tay cầm lưỡi hái kết liễu mọi sinh mệnh.",
+    hp: 20000, atk: 14000, def: 3000, skill: "Lưỡi hái tử thần / Giam giữ linh hồn",
+    avatar: "https://i.postimg.cc/SQtszSkP/unnamed-21.png"
+};
+//699 -> 6499//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  if (lv <= 6749) return {
+    name: "Demon Lord 😈🔥",
+    desc: "Chúa quỷ.",
+    hp: 25000, atk: 19000, def: 5200, skill: "Địa ngục bùng nổ",
+    avatar: "https://i.postimg.cc/6q57nK6p/dreamina-2025-08-31-6979-Demon-Lord-da-khu-n-m-t-d-t-n-c-2.jpg"
+  };
+
+  if (lv <= 7000) return {
+    name: "Ancient Dragon 🐲👑",
+    desc: "Rồng cổ xưa, thần thánh.",
+    hp: 30000, atk: 24000, def: 8000, skill: "Thánh hỏa",
+    avatar: "https://i.postimg.cc/PqsPKYfc/dreamina-2025-08-31-7481-1-con-R-ng-ch-u-u-b-ng-v-ng-c-x-a-th.jpg"
+  };
+     if (lv <= 7249) return {name:"Planetary Titan 🌍", desc:"Hành tinh khổng lồ, núi non và đại dương đều uốn theo ý nó, ánh sáng như rung chuyển trong không gian.", hp:50000, atk:30000, def:10000, skill:"Nghiền hành tinh", avatar:"https://i.postimg.cc/ncws9Mss/Gaiagoddess28395.webp"};
+  if (lv <= 7499) return {name:"Lunar Colossus 🌙", desc:"Vệ tinh khổng lồ, trăng tối rực lửa và khe nứt sâu hun hút như nuốt chửng ánh sáng.", hp:100000, atk:50000, def:15000, skill:"Sóng hấp dẫn", avatar:"https://i.postimg.cc/vm8HPs6R/Gemini-Generated-Image-qowke9qowke9qowk.png"};
+  if (lv <= 7749) return {name:"Stellar Colossus ☀️", desc:"Ngôi sao sống, bầu trời chao đảo khi nó thở ra lửa plasma, ánh sáng giết chết mọi thứ chạm phải.", hp:500000, atk:100000, def:35000, skill:"Bùng nổ sao", avatar:"https://i.postimg.cc/6qCXWjGL/Gemini-Generated-Image-4pz6qa4pz6qa4pz6.png"};
+  if (lv <= 7999) return {name:"Binary Star Guardian 🌟🌟", desc:"Hai ngôi sao liên kết, quay cuồng tạo lốc năng lượng, mọi định luật vật lý trở nên hỗn loạn quanh nó.", hp:1500000, atk:400000, def:60000, skill:"Xoay quỹ đạo", avatar:"https://i.postimg.cc/L6yyqkBz/Gemini-Generated-Image-izalttizalttizal.png"};
+  if (lv <= 8249) return {name:"Star System Guardian 🌌", desc:"Hệ sao cả vũ trụ cúi đầu, các hành tinh quỳ gối trước dòng năng lượng siêu khổng lồ của nó.", hp:20000000, atk:4000000, def:1000000, skill:"Quét toàn hệ sao", avatar:"https://i.postimg.cc/N0b8VBJR/Gemini-Generated-Image-rklwckrklwckrklw.png"};
+  if (lv <= 8499) return {name:"Nebula Entity ☁️", desc:"Tinh vân sống, dải khí xoay tròn và mưa sao rơi xuống như mũi giáo vô hình xuyên qua thiên hà.", hp:134000000, atk:12000000, def:6000000, skill:"Hóa tinh vân", avatar:"https://i.postimg.cc/FK39THTH/e7265e130f15e9c9ba3c900452603f1d.jpg"};
+  if (lv <= 8749) return {name:"Galactic Overlord 🌠", desc:"Thiên hà cuộn tròn, các vì sao kêu rên khi bị xoay trong tay nó, bóng tối nuốt chửng ánh sáng.", hp:500000000, atk:132000000, def:70000000, skill:"Xoay thiên hà", avatar:"https://i.postimg.cc/zffHyW7R/Gemini-Generated-Image-she3i2she3i2she3.png"};
+  if (lv <= 8999) return {name:"Black Hole Warden 🕳️", desc:"Hố đen khổng lồ, hút mọi vật chất và ánh sáng vào miệng hố sâu vô tận, im lặng đến rợn tóc gáy.", hp:5900000000, atk:1000000000, def:600000000, skill:"Hút tất cả", avatar:"https://i.postimg.cc/X77rH9M1/Gemini-Generated-Image-57n2se57n2se57n2.png"};
+  if (lv <= 9249) return {name:"Galaxy Cluster Warden 🌌🌌", desc:"Cụm thiên hà uốn mình, các thiên hà như bị xiềng xích, mọi quỹ đạo đều nghiêng theo ý nó.", hp:75000000000, atk:8250000000, def:3000000000, skill:"Hủy diệt cụm thiên hà", avatar:"https://i.postimg.cc/nc4ChT4L/Gemini-Generated-Image-t7ftu9t7ftu9t7ft.png"};
+  if (lv <= 9749) return {name:"Universe Lord 🌌🌟", desc:"Vũ trụ quan sát được run rẩy, ánh sáng từ các thiên hà bị bóp méo, tạo nên cơn ác mộng hình học.", hp:93000000000, atk:19000000000, def:9000000000, skill:"Bao phủ vũ trụ", avatar:"https://i.postimg.cc/DwLvgcfX/unnamed-1.png"};
+  if (lv <= 10000) return {name:"Multiversal God ✨🌌", desc:"Đa vũ trụ nằm trong lòng bàn tay, mọi thứ đều bất động trước ánh mắt của thực thể tối thượng.", hp:Infinity, atk:Infinity, def:Infinity, skill:"Toàn năng tuyệt đối vĩnh hằng", avatar:"https://i.postimg.cc/vZJyxxWZ/303802e5-c0ee-4fbc-b026-54e959e58ebf.png"};
+
+
+    return {
+      name:"Multiversal God ✨🌌",
+      desc:"Đa vũ trụ nằm trong lòng bàn tay, mọi thứ đều bất động trước ánh mắt của thực thể tối thượng.",
+      hp:Infinity, atk:Infinity, def:Infinity, skill:"Toàn năng tuyệt đối vĩnh hằng",
+      avatar:"https://i.postimg.cc/vZJyxxWZ/303802e5-c0ee-4fbc-b026-54e959e58ebf.png"
+    };
+  }
+
+  function reportStudy() {
+    if (hp <= 0) return;
+    document.getElementById("soundReport").play();
+    let timeStr = document.getElementById("timeInput").value;
+    let parts = timeStr.split(":").map(x=>parseInt(x)||0);
+    let seconds = parts[0]*3600 + parts[1]*60 + parts[2];
+    let gainedExp = seconds;
+    if (level >= 10) {
+      let bonus = Math.floor(level/10)*5;
+      gainedExp = seconds * bonus;
+    }
+    history.push({level,exp,totalExp,reports,hp,maxHp});
+    exp += gainedExp; totalExp += gainedExp; reports++;
+    hp -= maxHp/5; if (hp<0) hp=0;
+    log(`+${gainedExp} EXP (⏱️ ${timeStr})`);
+    let oldRank = getRank(level).name;
+    while (exp >= expToNextLevel(level)) {
+      exp -= expToNextLevel(level); level++;
+      maxHp += (level%10===0)?5000:0; hp = Math.min(hp, maxHp);
+      log(`⬆️ Lên level ${level}!`);
+      document.getElementById("soundLevelUp").play();
+      unlockedRanks.add(getRank(level).name); // Lưu rank đã mở
+      let newRank = getRank(level).name;
+      if (newRank!==oldRank) {
+        document.getElementById("soundFanfare").play();
+        showCongrats(getRank(level));
+      }
+    }
+    updateUI();
+  }
+
+  function undoReport() {
+    document.getElementById("soundUndo").play();
+    if (history.length===0) return;
+    let last = history.pop();
+    level = last.level; exp = last.exp; totalExp = last.totalExp; reports = last.reports; hp = last.hp; maxHp = last.maxHp;
+    log(`↩️ Hoàn tác report (Level ${level}, EXP ${exp})`);
+    updateUI();
+  }
+
+  function recoverHP(percent, emoji="") {
+    document.getElementById("soundRecoverBtn").play();
+    let heal = Math.floor(maxHp * (percent/100));
+    let oldHp = hp;
+    hp = Math.min(hp + heal, maxHp);
+    let actualHeal = hp - oldHp;
+    if (actualHeal > 0) {
+      log(`+${actualHeal} HP ${emoji}`);
+    } else {
+      log(`HP đã đầy ${emoji}`);
+    }
+    updateUI();
+  }
+
+  function updateUI() {
+    let rankInfo = getRank(level);
+    document.getElementById("level").textContent = level;
+    document.getElementById("rank").innerHTML = `
+      <img src="${rankInfo.avatar}" alt="${rankInfo.name}" style="width:100px;height:100px;border-radius:12px;"><br>
+      <strong>${rankInfo.name}</strong> - ${rankInfo.desc}<br>
+      ❤️ HP:${rankInfo.hp} | ⚔️ ATK:${rankInfo.atk} | 🛡️ DEF:${rankInfo.def} | ✨ Skill:${rankInfo.skill}
+    `;
+    document.getElementById("reports").textContent = reports;
+    document.getElementById("totalExp").textContent = totalExp;
+    let need = expToNextLevel(level);
+    let expPercent = (exp/need)*100;
+    document.getElementById("expFill").style.width = expPercent+"%";
+    document.getElementById("expFill").textContent = `${exp}/${need} (${Math.floor(expPercent)}%)`;
+    document.getElementById("hp").textContent = `${hp}/${maxHp}`;
+    let hpPercent = (hp/maxHp)*100;
+    document.getElementById("hpFill").style.width = hpPercent+"%";
+    document.getElementById("hpFill").textContent = Math.floor(hpPercent)+"%";
+    document.getElementById("reportBtn").disabled = (hp <= 0);
+    renderRankGallery();
+  }
+
+  function log(msg) {
+    let log = document.getElementById("log");
+    let entry = document.createElement("div");
+    entry.textContent = msg;
+    log.prepend(entry);
+  }
+
+  function showCongrats(rank) {
+    document.getElementById("soundCongratsPopup").play();
+    let popup = document.getElementById("congratsPopup");
+    let content = document.getElementById("congratsContent");
+    content.innerHTML = `
+      <img src="${rank.avatar}" alt="${rank.name}" style="width:100px;height:100px;border-radius:12px;"><br><br>
+      <strong>${rank.name}</strong><br>
+      ${rank.desc}<br>
+      ❤️ HP:${rank.hp} | ⚔️ ATK:${rank.atk} | 🛡️ DEF:${rank.def}<br>
+      ✨ Skill: ${rank.skill}
+    `;
+    popup.style.display = "flex";
+  }
+
+  function closeCongrats() {
+    document.getElementById("closeCongrats").play();
+    document.getElementById("congratsPopup").style.display = "none";
+  }
+
+  function toggleMode() {
+    document.getElementById("soundToggleMode").play();
+    document.body.classList.toggle("dark-mode");
+    let btn = document.getElementById("modeToggle");
+    btn.textContent = document.body.classList.contains("dark-mode") ? "☀️ Light" : "🌙 Dark";
+  }
+
+function renderRankGallery() {
+  let container = document.getElementById("rankGallery");
+  container.innerHTML = "";
+
+  // Lấy danh sách các rank (1..50)
+  let levels = [];
+  for (let lv = 1; lv <= 10000; lv++) {
+    levels.push({lv, rank: getRank(lv)});
+  }
+
+  // Loại bỏ rank trùng
+  let uniqueRanks = [];
+  let seen = new Set();
+  for (let item of levels) {
+    if (!seen.has(item.rank.name)) {
+      seen.add(item.rank.name);
+      uniqueRanks.push(item.rank);
+    }
+  }
+
+  for (let r of uniqueRanks) {
+    let div = document.createElement("div");
+    div.style.width = "100px";
+    div.style.height = "120px";
+    div.style.border = "1px solid #ccc";
+    div.style.borderRadius = "8px";
+    div.style.textAlign = "center";
+    div.style.padding = "5px";
+    div.style.fontSize = "12px";
+    div.style.cursor = "pointer";
+
+    if (unlockedRanks.has(r.name)) {
+      div.innerHTML = `
+        <img src="${r.avatar}" style="width:60px;height:60px;border-radius:6px;"><br>
+        ${r.name}
+      `;
+      // 👇 Gắn sự kiện click hiển thị thông tin
+      div.addEventListener("click", function() {
+        showCongrats(r);
+      });
+    } else {
+      div.innerHTML = `
+        <div style="width:60px;height:60px;border-radius:6px;background:#999;
+        display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;">?</div>
+        <br>???
+      `;
+    }
+    container.appendChild(div);
+  }
+}
+  // Lưu rank đầu tiên khi vào game
+  unlockedRanks.add(getRank(level).name);
+  updateUI();
+</script>
+<h3>🔗 (liên kết)</h3>
+<h4>© 2025 MyGame 📝⚙️</h4>
+<h4>Developed by Chatgpt and Sinh Mai.</h4>
+<h4> Liên hệ: maithucsinh11223344@gmail.com</h4>
+
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("✅ Service Worker registered"))
+        .catch(err => console.error("❌ SW registration failed:", err));
+    }
+  </script>
+</body>
+</html>
